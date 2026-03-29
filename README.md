@@ -1,255 +1,186 @@
+# Product Management OpenEnv
 
+An AI agent environment where the agent manages a software product backlog,
+plans sprints, and optimizes releases under deadlines and team capacity constraints.
 
-# Product Mgmt Env Environment
+Built on the [OpenEnv](https://huggingface.co/openenv) framework by Meta + Hugging Face.
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
-
-## Quick Start
-
-The simplest way to use the Product Mgmt Env environment is through the `ProductMgmtEnv` class:
-
-```python
-from product_mgmt_env import ProductMgmtAction, ProductMgmtEnv
-
-try:
-    # Create environment from Docker image
-    product_mgmt_envenv = ProductMgmtEnv.from_docker_image("product_mgmt_env-env:latest")
-
-    # Reset
-    result = product_mgmt_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
-
-    for msg in messages:
-        result = product_mgmt_envenv.step(ProductMgmtAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
-
-finally:
-    # Always clean up
-    product_mgmt_envenv.close()
-```
-
-That's it! The `ProductMgmtEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
-
-## Building the Docker Image
-
-Before using the environment, you need to build the Docker image:
-
-```bash
-# From project root
-docker build -t product_mgmt_env-env:latest -f server/Dockerfile .
-```
-
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**ProductMgmtAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**ProductMgmtObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Product Mgmt Env environment server running, you can connect directly:
-
-```python
-from product_mgmt_env import ProductMgmtEnv
-
-# Connect to existing server
-product_mgmt_envenv = ProductMgmtEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = product_mgmt_envenv.reset()
-result = product_mgmt_envenv.step(ProductMgmtAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `product_mgmt_envenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from product_mgmt_env import ProductMgmtAction, ProductMgmtEnv
-
-# Connect with context manager (auto-connects and closes)
-with ProductMgmtEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(ProductMgmtAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    ProductMgmtEnvironment,  # Pass class, not instance
-    ProductMgmtAction,
-    ProductMgmtObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from product_mgmt_env import ProductMgmtAction, ProductMgmtEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with ProductMgmtEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(ProductMgmtAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
-
-```bash
-# From the server directory
-python3 server/product_mgmt_env_environment.py
-```
-
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
-
-### Running Locally
-
-Run the server locally for development:
-
-```bash
-uvicorn server.app:app --reload
-```
-
-## Project Structure
-
-```
-product_mgmt_env/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # ProductMgmtEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── product_mgmt_env_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
-
-title: Product Mgmt Openenv
-emoji: 📈
-colorFrom: pink
-colorTo: purple
-sdk: docker
-pinned: false
-license: mit
 ---
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+## Environment Description
+
+The agent acts as a Product Manager. Each episode simulates one product cycle
+across 30 steps. The agent must:
+
+- Prioritize stories from a backlog
+- Fill sprints within team capacity
+- Fix bugs before technical debt grows
+- Release value before the deadline
+- Keep stakeholder satisfaction high
+
+---
+
+## Action Space
+
+| Decision | Value | Description |
+|---|---|---|
+| ADD_TO_SPRINT | 0 | Move a story from backlog into current sprint |
+| DEFER | 1 | Push a story lower in priority |
+| REMOVE | 2 | Remove a story from sprint back to backlog |
+| RELEASE | 3 | Close current sprint and ship completed stories |
+
+Each action also takes a `story_id` (int) to identify which story to act on.
+Use `story_id=-1` for RELEASE.
+
+---
+
+## Observation Space
+
+| Field | Type | Description |
+|---|---|---|
+| sprint_number | int | Current sprint number |
+| step | int | Current step in episode |
+| max_steps | int | Maximum steps per episode (30) |
+| team_capacity | int | Total story points available |
+| used_capacity | int | Story points already assigned |
+| backlog_count | int | Stories waiting in backlog |
+| sprint_count | int | Stories in current sprint |
+| completed_count | int | Total completed stories |
+| deadline_pressure | float | 0.0=relaxed, 1.0=critical |
+| technical_debt | float | 0.0=clean, 1.0=very high |
+| stakeholder_satisfaction | float | 0.0–1.0 |
+| revenue_unlocked | float | Total business value delivered |
+| top_backlog_stories | list[dict] | Top 5 backlog stories |
+| current_sprint_stories | list[dict] | Stories currently in sprint |
+
+---
+
+## Reward Function
+
+| Event | Reward |
+|---|---|
+| Adding high priority story (priority 1-2) | +0.4 |
+| Adding a bug fix | +0.3 |
+| Adding high value story (value >= 0.7) | +0.2 |
+| Acting under deadline pressure | +0.1 |
+| Successful release with high value | +0.5 |
+| Good stakeholder satisfaction | +0.1 |
+| Overfilling sprint capacity | -0.2 |
+| Ignoring bugs under deadline | -0.3 |
+| Deferring high priority story | -0.2 |
+| Removing high value story | -0.4 |
+| High technical debt | -0.2 |
+| Low stakeholder satisfaction | -0.3 |
+
+Reward is clamped between -1.0 and 1.0.
+
+---
+
+## Tasks
+
+| Task | Scenario | Passing Score |
+|---|---|---|
+| easy | Small backlog, relaxed deadline, high capacity | 0.7 |
+| medium | Larger backlog, moderate pressure, bugs mixed in | 0.75 |
+| hard | Large backlog, critical deadline, low capacity | 0.8 |
+
+---
+
+## Baseline Scores (Greedy Agent, seed=42)
+
+| Task | Score | Passed |
+|---|---|---|
+| Easy | 0.9274 | ✓ YES |
+| Medium | 0.8592 | ✓ YES |
+| Hard | 0.6932 | ✗ NO |
+| Average | 0.8266 | — |
+
+---
+
+## Setup Instructions
+
+### Requirements
+- Python 3.10+
+- Git
+- Docker (for deployment)
+- Hugging Face account
+
+### Installation
+```bash
+# clone the OpenEnv repo
+git clone https://github.com/meta-pytorch/OpenEnv.git
+cd OpenEnv/product_mgmt_env
+
+# create virtual environment
+python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Mac/Linux
+
+# install dependencies
+pip install openenv-core
+pip install -r server/requirements.txt
+```
+
+### Run Baseline
+```bash
+python baseline/run_baseline.py
+```
+
+### Run Server Locally
+```bash
+cd server
+uvicorn app:app --reload --port 8000
+```
+
+### Run with Docker
+```bash
+docker build -t product-mgmt-env -f server/Dockerfile .
+docker run -p 8000:8000 product-mgmt-env
+```
+
+### Connect Agent
+```python
+from product_mgmt_env import ProductMgmtEnv, ProductMgmtAction
+
+with ProductMgmtEnv(base_url="http://localhost:8000") as env:
+    obs = env.reset()
+
+    while not obs.done:
+        action = ProductMgmtAction(decision=0, story_id=1)
+        result = env.step(action)
+        obs = result.observation
+        print(f"Reward: {result.reward}")
+```
+
+---
+
+## Project Structure
+```
+product_mgmt_env/
+├── server/
+│   ├── app.py                          # FastAPI server
+│   ├── product_mgmt_env_environment.py # Environment logic
+│   ├── requirements.txt
+│   └── Dockerfile
+├── tasks/
+│   ├── task_easy.py                    # Easy task
+│   ├── task_medium.py                  # Medium task
+│   └── task_hard.py                    # Hard task
+├── graders/
+│   ├── base_grader.py                  # Base grader
+│   ├── easy_grader.py                  # Easy grader
+│   ├── medium_grader.py                # Medium grader
+│   └── hard_grader.py                  # Hard grader
+├── baseline/
+│   └── run_baseline.py                 # Baseline inference script
+├── models.py                           # Typed Action + Observation
+├── client.py                           # Agent client
+├── openenv.yaml                        # OpenEnv spec
+└── README.md
+```
+
+---
+
+## License
+
+BSD — see LICENSE file in the root directory.
