@@ -1,4 +1,5 @@
 ---
+<<<<<<< HEAD
 title: Product Mgmt Env Environment Server
 emoji: 🎮
 colorFrom: blue
@@ -253,3 +254,15 @@ product_mgmt_env/
     ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
     └── Dockerfile         # Container image definition
 ```
+=======
+title: Product Mgmt Openenv
+emoji: 📈
+colorFrom: pink
+colorTo: purple
+sdk: docker
+pinned: false
+license: mit
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+>>>>>>> 6dbc2553f7c416499ef328601be8c7f0e8afd847
