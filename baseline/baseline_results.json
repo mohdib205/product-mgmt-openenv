@@ -1,0 +1,35 @@
+{
+  "easy": {
+    "score": 0.9274,
+    "passed": true,
+    "passing_score": 0.7,
+    "task": "easy",
+    "completed": 21,
+    "revenue_unlocked": 11.27,
+    "stakeholder_satisfaction": 0.637,
+    "technical_debt": 0.27,
+    "total_reward": 8.8
+  },
+  "medium": {
+    "score": 0.8592,
+    "passed": true,
+    "passing_score": 0.75,
+    "task": "medium",
+    "completed": 8,
+    "revenue_unlocked": 4.05,
+    "stakeholder_satisfaction": 0.606,
+    "technical_debt": 0.31,
+    "total_reward": 8.2
+  },
+  "hard": {
+    "score": 0.6932,
+    "passed": false,
+    "passing_score": 0.8,
+    "task": "hard",
+    "completed": 19,
+    "revenue_unlocked": 11.7,
+    "stakeholder_satisfaction": 0.716,
+    "technical_debt": 1.0,
+    "total_reward": 8.0
+  }
+}

@@ -1,0 +1,62 @@
+spec_version: 1
+name: product_mgmt_env
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+
+description: >
+  A Product Management environment where an AI agent manages
+  a software product backlog, plans sprints, and optimizes
+  releases under deadlines and team capacity constraints.
+
+tasks:
+  - id: easy
+    description: Small backlog, relaxed deadline, high team capacity
+    passing_score: 0.7
+
+  - id: medium
+    description: Larger backlog, moderate pressure, reduced capacity, bugs mixed in
+    passing_score: 0.75
+
+  - id: hard
+    description: Large backlog, critical deadline, low capacity, high technical debt
+    passing_score: 0.8
+
+observation_space:
+  sprint_number: int
+  step: int
+  max_steps: int
+  team_capacity: int
+  used_capacity: int
+  backlog_count: int
+  sprint_count: int
+  completed_count: int
+  deadline_pressure: float
+  technical_debt: float
+  stakeholder_satisfaction: float
+  revenue_unlocked: float
+  top_backlog_stories: list[dict]
+  current_sprint_stories: list[dict]
+
+action_space:
+  decision:
+    type: int
+    values:
+      0: ADD_TO_SPRINT
+      1: DEFER
+      2: REMOVE
+      3: RELEASE
+  story_id:
+    type: int
+    default: -1
+
+reward:
+  range: [-1.0, 1.0]
+  partial_credit: true
+
+baseline_scores:
+  easy: 0.9274
+  medium: 0.8592
+  hard: 0.6932
+  average: 0.8266
