@@ -36,8 +36,8 @@ except Exception as e:  # pragma: no cover
     ) from e
 
 try:
-    from ..models import ProductMgmtAction, ProductMgmtObservation
-    from .product_mgmt_env_environment import ProductMgmtEnvironment
+    from models import ProductMgmtAction, ProductMgmtObservation
+    from server.product_mgmt_env_environment import ProductMgmtEnvironment
 except ModuleNotFoundError:
     from models import ProductMgmtAction, ProductMgmtObservation
     from server.product_mgmt_env_environment import ProductMgmtEnvironment
