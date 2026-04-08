@@ -1,3 +1,11 @@
+---
+title: Product Mgmt OpenEnv
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_file: server/app.py
+---
 # Product Management OpenEnv
 
 An AI agent environment where the agent manages a software product backlog,
